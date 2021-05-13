@@ -1,4 +1,5 @@
 const express = require("express");
+const shortid = require('shortid');
 const app = express();
 const http = require("http").createServer(app);
 const { v1: uuidv1, v4: uuidv4 } = require("uuid");
@@ -11,8 +12,18 @@ const io = require("socket.io")(http, {
   },
 });
 
+
+function generateUID() {
+  // I generate the UID from two parts here 
+  // to ensure the random number provide enough bits.
+  var firstPart = (Math.random() * 46656) | 0;
+  var secondPart = (Math.random() * 46656) | 0;
+  firstPart = ("000" + firstPart.toString(36)).slice(-3);
+  secondPart = ("000" + secondPart.toString(36)).slice(-3);
+  return firstPart + secondPart;
+}
+
 var redis = require("redis");
-const { group } = require("console");
 var redisClient = redis.createClient();
 
 redisClient.on("connect", function () {
@@ -31,25 +42,25 @@ io.use((socket, next) => {
           socket.handle = handle;
           socket.handleId = handleId;
           socket.sessionId = sessionId;
+          socket.ghatna = "refreshing";
           return next();
         }
       });
     }
   } else if (ghatna === "createdRoom") {
     let { handle } = socket.handshake.auth;
-
-    if (handle === undefined) {
-      return next(new Error("invalid creds"));
-    }
-    socket.handle = handle;
-    socket.sessionId = uuidv4();
+    console.log(handle);
+    socket.handle = handle+'#'+generateUID();
+    socket.sessionId = shortid();
     socket.handleId = uuidv4();
+    socket.ghatna = "createdRoom"
     next();
   } else if (ghatna === "joinedRoom") {
     let { handle, sessionId } = socket.handshake.auth;
-    socket.handle = handle;
+    socket.handle = handle+'#'+generateUID();
     socket.handleId = uuidv4();
     socket.sessionId = sessionId;
+    socket.ghatna = "joinedRoom";
     next();
   }
 });
@@ -59,6 +70,7 @@ let groupsChats = [];
 io.on("connection", (socket) => {
   console.log("a user connected");
   let { handle, sessionId, handleId } = socket;
+
   handleInfo = { handle, sessionId, handleId };
   socket.join(`${sessionId}`);
 
@@ -70,10 +82,14 @@ io.on("connection", (socket) => {
     }
   });
 
+  let msg = [];
+  if(socket.ghatna === "refreshing" || socket.ghatna === "joinedRoom") {
+    msg = groupsChats;
+  }
   socket.emit("selfNetworkInfo", {
     WelcomeMsg: `you have joined the session`,
     handleInfo,
-    msg: groupsChats,
+    msg
   });
 
   socket
