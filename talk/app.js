@@ -37,7 +37,7 @@ io.use((socket, next) => {
     }
   } else if (ghatna === "createdRoom") {
     let { handle } = socket.handshake.auth;
-
+    console.log(handle);
     if (handle === undefined) {
       return next(new Error("invalid creds"));
     }
@@ -55,9 +55,11 @@ io.use((socket, next) => {
 });
 
 let groupsChats = [];
+let lines = [];
 
 io.on("connection", (socket) => {
   console.log("a user connected");
+
   let { handle, sessionId, handleId } = socket;
   handleInfo = { handle, sessionId, handleId };
   socket.join(`${sessionId}`);
@@ -69,6 +71,20 @@ io.on("connection", (socket) => {
       groupsChats = JSON.parse(object);
     }
   });
+
+  for(var i in lines){
+    socket.to(`${sessionId}`).emit('draw_line',lines[i])
+  }
+
+  socket.on('delete',(data)=>{
+    lines.splice(0, lines.length)
+  })
+
+  socket.on('draw_line',(data)=>{
+    // console.log(data);
+    lines.push(data)
+    io.to(`${sessionId}`).emit('draw_line',data)
+  })
 
   socket.emit("selfNetworkInfo", {
     WelcomeMsg: `you have joined the session`,
