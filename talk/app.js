@@ -66,9 +66,11 @@ io.use((socket, next) => {
 });
 
 let groupsChats = [];
+let lines = [];
 
 io.on("connection", (socket) => {
   console.log("a user connected");
+
   let { handle, sessionId, handleId } = socket;
 
   handleInfo = { handle, sessionId, handleId };
@@ -81,6 +83,20 @@ io.on("connection", (socket) => {
       groupsChats = JSON.parse(object);
     }
   });
+
+  for(var i in lines){
+    socket.to(`${sessionId}`).emit('draw_line',lines[i])
+  }
+
+  socket.on('delete',(data)=>{
+    lines.splice(0, lines.length)
+  })
+
+  socket.on('draw_line',(data)=>{
+    // console.log(data);
+    lines.push(data)
+    io.to(`${sessionId}`).emit('draw_line',data)
+  })
 
   let msg = [];
   if(socket.ghatna === "refreshing" || socket.ghatna === "joinedRoom") {
